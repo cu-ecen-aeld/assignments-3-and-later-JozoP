@@ -70,37 +70,43 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    va_end(args);
 
-    __pid_t pid = fork();
+    int pid = fork();
+    printf("\t\t\t\t\t\tdebug command0: %s, 1: %s\n", command[0], command[1]);
+    printf("\t\t\t\t\t\tdebug pid: %d\n", pid);
     int status = 0;
-    int execv_status = 0;
     
+    if(pid < 0)
+    {
+        return false;
+    }
 
     if(pid == 0)
     {   
         //child process
-        execv_status = execv(command[0], command);
-
-        if(execv_status == -1)
-        {
-            return false;
-        }
+        execv(command[0], command);
+        exit(EXIT_FAILURE);
+        
+        return false;
     }
-    else
-    {
+    
+    
         //parent process
 
-        wait(&status);
-        
-        if(WEXITSTATUS(status) != 0)
+        //wait(&status);
+        int ret = waitpid(pid, &status, 0);
+
+        if(ret < 0)
         {
             return false;
         }
-    }
+    
+        
+    
 
-    va_end(args);
 
-    return true;
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
 
 /**
@@ -132,37 +138,55 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *
 */
     int status = 0;
-    int execv_status = 0;
+    int dup2_status = 0;
     int fd = 0;
 
-    __pid_t pid = fork();
+    int pid = fork();
 
     if(pid == 0)
     {
+        /*printf("\t\t\t\t\t\texecv_status: %d\n", execv_status);
+        printf("\t\t\t\t\t\tcommand[0]: %s\n", command[0]);
+        printf("\t\t\t\t\t\tcommand[1]: %s\n", command[1]);*/
         //child process
         fd = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        dup2(fd, STDOUT_FILENO);
+        if(fd < 0)return false;
+
+        dup2_status = dup2(fd, STDOUT_FILENO);
         close(fd);
 
-        execv_status = execv(command[0], command);
-
-        if(execv_status == -1)
+        if(dup2_status < 0)
         {
             return false;
         }
+
+        //child process
+        execv(command[0], command);
+
+
+        
+        return false;
     }
-    else
+    
     {
         //parent process
-        wait(&status);
+        //wait(&status);
+        int ret = waitpid(pid, &status, 0);
 
-        if(WEXITSTATUS(status) != 0)
+        if(ret < 0)
         {
+            return false;
+        }
+
+        if(status == 0)
+        {
+            return true;
+        }else{
             return false;
         }
     }
 
     va_end(args);
 
-    return true;
+    return false;
 }
