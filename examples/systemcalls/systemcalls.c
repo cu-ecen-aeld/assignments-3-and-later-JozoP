@@ -1,4 +1,9 @@
 #include "systemcalls.h"
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <stdlib.h>
+
 
 /**
  * @param cmd the command to execute with system()
@@ -16,7 +21,14 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    int ret = 0;
 
+    ret = system(cmd);
+
+    if(ret != 0)
+    {
+        return false;
+    }
     return true;
 }
 
@@ -59,6 +71,33 @@ bool do_exec(int count, ...)
  *
 */
 
+    __pid_t pid = fork();
+    int status = 0;
+    int execv_status = 0;
+    
+
+    if(pid == 0)
+    {   
+        //child process
+        execv_status = execv(command[0], command);
+
+        if(execv_status == -1)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        //parent process
+
+        wait(&status);
+        
+        if(WEXITSTATUS(status) != 0)
+        {
+            return false;
+        }
+    }
+
     va_end(args);
 
     return true;
@@ -92,6 +131,36 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    int status = 0;
+    int execv_status = 0;
+    int fd = 0;
+
+    __pid_t pid = fork();
+
+    if(pid == 0)
+    {
+        //child process
+        fd = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+
+        execv_status = execv(command[0], command);
+
+        if(execv_status == -1)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        //parent process
+        wait(&status);
+
+        if(WEXITSTATUS(status) != 0)
+        {
+            return false;
+        }
+    }
 
     va_end(args);
 
