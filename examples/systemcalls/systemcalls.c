@@ -73,8 +73,6 @@ bool do_exec(int count, ...)
     va_end(args);
 
     int pid = fork();
-    printf("\t\t\t\t\t\tdebug command0: %s, 1: %s\n", command[0], command[1]);
-    printf("\t\t\t\t\t\tdebug pid: %d\n", pid);
     int status = 0;
     
     if(pid < 0)
@@ -87,7 +85,7 @@ bool do_exec(int count, ...)
         //child process
         execv(command[0], command);
         exit(EXIT_FAILURE);
-        
+
         return false;
     }
     
@@ -145,9 +143,6 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
 
     if(pid == 0)
     {
-        /*printf("\t\t\t\t\t\texecv_status: %d\n", execv_status);
-        printf("\t\t\t\t\t\tcommand[0]: %s\n", command[0]);
-        printf("\t\t\t\t\t\tcommand[1]: %s\n", command[1]);*/
         //child process
         fd = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if(fd < 0)return false;
