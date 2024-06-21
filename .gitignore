@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 *.o
 writer
 Test_*_Runner.c
@@ -8,9 +7,7 @@ aesd-build
 .vscode/
 test.sh.log
 server/aesdsocket
-=======
 build
 .vscode
 valgrind-out.txt
 test.sh.log
->>>>>>> yocto-assignments-base/master

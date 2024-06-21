@@ -1,5 +1,1 @@
-<<<<<<< HEAD
-JozoP
-=======
 aesd-example
->>>>>>> yocto-assignments-base/master
