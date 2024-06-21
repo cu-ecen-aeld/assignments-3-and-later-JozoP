@@ -1,5 +1,6 @@
-CC = $(CROSS_COMPILE)gcc
-CFLAGS = -Wall -Wextra -Werror -g
+#CC = $(CROSS_COMPILE)gcc
+CC = gcc
+CFLAGS = -Wall -Werror -g -pthread -lrt
 
 
 
