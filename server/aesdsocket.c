@@ -144,7 +144,11 @@ void *timestamp_handler(void *arg) {
             syslog(LOG_ERR, "ERROR: Failed to acquire mutex!");
             cleanup(EXIT_FAILURE);
         }
-        write(datafd, timestamp, strlen(timestamp));
+        size_t bytes_writen = write(datafd, timestamp, strlen(timestamp));
+        if (bytes_writen == -1) {
+            syslog(LOG_ERR, "ERROR: Failed to write to %s file", aesddata_file);
+            cleanup(EXIT_FAILURE);
+        }
         // Unlock the mutex after writing to the file
         if (pthread_mutex_unlock(&aesddata_file_mutex) != 0) {
             syslog(LOG_ERR, "ERROR: Failed to release mutex!");
