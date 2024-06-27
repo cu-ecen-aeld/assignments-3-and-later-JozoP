@@ -32,6 +32,7 @@ int aesd_open(struct inode *inode, struct file *filp)
     /**
      * TODO: handle open
      */
+    filp->private_data = container_of(inode->i_cdev, struct aesd_dev, cdev);
     return 0;
 }
 
@@ -47,23 +48,109 @@ int aesd_release(struct inode *inode, struct file *filp)
 ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
-    ssize_t retval = 0;
+    if ((buf == NULL) ||(filp == NULL) || (f_pos == NULL))
+    {
+        return -EFAULT;
+    }
+
+
+    
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     /**
      * TODO: handle read
      */
-    return retval;
+
+    struct aesd_dev *dev;
+	ssize_t rd_count = 0;
+    ssize_t bytes_rd = 0;
+	ssize_t rd_offset = 0;
+    struct aesd_buffer_entry *rd_idx = NULL;
+
+    dev = (struct aesd_dev *)filp->private_data;
+    if (mutex_lock_interruptible(&dev->lock))
+    {
+        PDEBUG(KERN_ERR "mutex lock failed");
+        return -EFAULT;
+    }
+    rd_idx = aesd_circular_buffer_find_entry_offset_for_fpos(&(dev->circular_buffer), *f_pos, &rd_offset);
+    if (rd_idx == NULL)
+    {
+        mutex_unlock(&(dev->lock));
+		return bytes_rd;
+    }
+    else
+    {
+        count = (count > (rd_idx->size - rd_offset))? (rd_idx->size - rd_offset): count;
+    }
+    if((rd_count = copy_to_user(buf,(rd_idx->buffptr + rd_offset), count))==0)
+		PDEBUG("read Complete");
+    bytes_rd = count - rd_count;
+    *f_pos += bytes_rd;
+	mutex_unlock(&(dev->lock));
+    return bytes_rd;
 }
 
 ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
-    ssize_t retval = -ENOMEM;
+    if (count == 0)
+        return 0;
+    if ((buf == NULL) ||(filp == NULL) || (f_pos == NULL))
+        return -EFAULT;
+
+    struct aesd_dev *dev;
+	ssize_t bytes_written = -ENOMEM;
+    const char *wr_entry = NULL;
+    ssize_t bytes_count = 0;
+
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
     /**
      * TODO: handle write
      */
-    return retval;
+    dev = (struct aesd_dev *)filp->private_data;
+	
+    if (mutex_lock_interruptible(&(dev->lock)))
+    {
+        PDEBUG(KERN_ERR "mutex lock failed");
+        return -EFAULT;
+    }
+
+    if (dev->circular_buffer_entry.size == 0)
+    {
+        PDEBUG("Allocating buffer");
+        dev->circular_buffer_entry.buffptr = kmalloc(count * sizeof(char), GFP_KERNEL);
+        if (dev->circular_buffer_entry.buffptr == NULL)
+        {
+            PDEBUG("memory alloc failure");
+            mutex_unlock(&dev->lock);
+			return bytes_written;
+        }
+    }
+    else
+    {
+        dev->circular_buffer_entry.buffptr = krealloc(dev->circular_buffer_entry.buffptr, (dev->circular_buffer_entry.size + count), GFP_KERNEL);
+        if (dev->circular_buffer_entry.buffptr == NULL)
+        {
+            PDEBUG("memory alloc failure");
+            mutex_unlock(&dev->lock);
+			return bytes_written;
+        }
+    }
+    PDEBUG("write from user space buffer to kernel buffer");
+    if((bytes_count = copy_from_user((void *)(dev->circular_buffer_entry.buffptr + dev->circular_buffer_entry.size),buf, count))== 0)
+		PDEBUG("write Complete");
+	
+    bytes_written = count - bytes_count;
+    dev->circular_buffer_entry.size += bytes_written;
+    if (memchr(dev-> circular_buffer_entry.buffptr, '\n', dev->circular_buffer_entry.size))
+    {
+        if((wr_entry = aesd_circular_buffer_add_entry(&dev->circular_buffer, &dev->circular_buffer_entry)))
+            kfree(wr_entry);
+        dev-> circular_buffer_entry.buffptr = NULL;
+        dev->circular_buffer_entry.size = 0;
+    }
+    mutex_unlock(&dev->lock);
+    return bytes_written;
 }
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
@@ -106,6 +193,9 @@ int aesd_init_module(void)
      * TODO: initialize the AESD specific portion of the device
      */
 
+    mutex_init(&aesd_device.mutex);
+    aesd_circular_buffer_init(&aesd_device.circular_buffer);
+
     result = aesd_setup_cdev(&aesd_device);
 
     if( result ) {
@@ -124,6 +214,14 @@ void aesd_cleanup_module(void)
     /**
      * TODO: cleanup AESD specific poritions here as necessary
      */
+
+    uint8_t index;
+    struct aesd_buffer_entry *entry;
+
+    AESD_CIRCULAR_BUFFER_FOREACH(entry, &aesd_device.cbuf, idx){
+        if (entry->buffptr != NULL)
+            kfree(entry->buffptr);
+    }
 
     unregister_chrdev_region(devno, 1);
 }

@@ -14,6 +14,10 @@
 
 #include "queue.h"
 
+#ifndef AESD_CHAR_DEVICE
+#define AESD_CHAR_DEVICE (1)
+#endif
+
 static char *aesddata_file = "/var/tmp/aesdsocketdata";
 int sockfd, datafd;
 

@@ -23,12 +23,17 @@
 #  define PDEBUG(fmt, args...) /* not debugging: nothing */
 #endif
 
+
 struct aesd_dev
 {
     /**
      * TODO: Add structure(s) and locks needed to complete assignment requirements
      */
-    struct cdev cdev;     /* Char device structure      */
+    struct aesd_buffer_entry circular_buffer_entry;
+    struct aesd_circular_buffer circular_buffer;
+    struct mutex lock;
+    struct cdev cdev;
+
 };
 
 
