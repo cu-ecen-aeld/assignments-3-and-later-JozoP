@@ -14,8 +14,8 @@
 
 #include "queue.h"
 
-#ifndef AESD_CHAR_DEVICE
-#define AESD_CHAR_DEVICE (1)
+#ifndef USE_AESD_CHAR_DEVICE 
+#define USE_AESD_CHAR_DEVICE (1)
 #endif
 
 static char *aesddata_file = "/var/tmp/aesdsocketdata";
@@ -97,6 +97,9 @@ void *handle_connection(void *arg)
         }
         if (write(datafd, buffer, recv_size) == -1) {
             syslog(LOG_ERR, "ERROR: Failed to write to %s file", aesddata_file);
+            #if !USE_AESD_CHAR_DEVICE
+            ftruncate(datafd, init_offset);
+            #endif
             cleanup(EXIT_FAILURE);
         }
         if (pthread_mutex_unlock(&aesddata_file_mutex) != 0) {
@@ -201,11 +204,13 @@ int main(int argc, char *argv[]) {
     SLIST_INIT(&thread_list);
 
     // Timestamp thread
+    #if !USE_AESD_CHAR_DEVICE
     pthread_t timestamp_thread;
     if (pthread_create(&timestamp_thread, NULL, timestamp_handler, NULL) != 0) {
         syslog(LOG_ERR, "ERROR: Failed to create timestamp thread!");
         cleanup(EXIT_FAILURE);
     }
+    #endif
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1) {
@@ -239,12 +244,21 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    #if USE_AESD_CHAR_DEVICE 
+    datafd = open("/dev/aesdchar", O_CREAT | O_TRUNC | O_RDWR, 0644);
+    if (datafd == -1){
+        syslog(LOG_ERR, "ERROR: Failed to create file - %s", aesddata_file);
+        closelog();
+        exit(EXIT_FAILURE);
+    }
+    #else
     datafd = open(aesddata_file, O_CREAT | O_RDWR | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (datafd == -1){
         syslog(LOG_ERR, "ERROR: Failed to create file - %s", aesddata_file);
         closelog();
         exit(EXIT_FAILURE);
     }
+    #endif
 
     while (1) {
         struct sockaddr_in client_addr;
