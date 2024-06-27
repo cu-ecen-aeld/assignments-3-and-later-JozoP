@@ -16,12 +16,13 @@
 #include <linux/printk.h>
 #include <linux/types.h>
 #include <linux/cdev.h>
+#include <linux/slab.h>
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
-int aesd_major =   0; // use dynamic major
-int aesd_minor =   0;
+int aesd_major = 0; // use dynamic major
+int aesd_minor = 0;
 
-MODULE_AUTHOR("Your Name Here"); /** TODO: fill in your name **/
+MODULE_AUTHOR("JozoP"); /** TODO: fill in your name **/
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct aesd_dev aesd_device;
@@ -193,7 +194,7 @@ int aesd_init_module(void)
      * TODO: initialize the AESD specific portion of the device
      */
 
-    mutex_init(&aesd_device.mutex);
+    mutex_init(&aesd_device.lock);
     aesd_circular_buffer_init(&aesd_device.circular_buffer);
 
     result = aesd_setup_cdev(&aesd_device);
@@ -218,7 +219,7 @@ void aesd_cleanup_module(void)
     uint8_t index;
     struct aesd_buffer_entry *entry;
 
-    AESD_CIRCULAR_BUFFER_FOREACH(entry, &aesd_device.cbuf, idx){
+    AESD_CIRCULAR_BUFFER_FOREACH(entry, &aesd_device.circular_buffer, index){
         if (entry->buffptr != NULL)
             kfree(entry->buffptr);
     }
