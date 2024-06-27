@@ -101,7 +101,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
     struct aesd_dev *dev;
 	ssize_t bytes_written = -ENOMEM;
-    const char *wr_entry = NULL;
     ssize_t bytes_count = 0;
 
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
@@ -145,8 +144,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     dev->circular_buffer_entry.size += bytes_written;
     if (memchr(dev-> circular_buffer_entry.buffptr, '\n', dev->circular_buffer_entry.size))
     {
-        if((wr_entry = aesd_circular_buffer_add_entry(&dev->circular_buffer, &dev->circular_buffer_entry)))
-            kfree(wr_entry);
+        aesd_circular_buffer_add_entry(&dev->circular_buffer, &dev->circular_buffer_entry)))
+        
         dev-> circular_buffer_entry.buffptr = NULL;
         dev->circular_buffer_entry.size = 0;
     }
