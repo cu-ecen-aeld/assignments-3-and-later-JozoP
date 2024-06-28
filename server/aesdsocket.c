@@ -14,8 +14,8 @@
 
 #include "queue.h"
 
-#ifndef USE_AESD_CHAR_DEVICE 
-#define USE_AESD_CHAR_DEVICE (1)
+#ifndef USE_AESD_CHAR_DEVICE
+#define USE_AESD_CHAR_DEVICE 1
 #endif
 
 static char *aesddata_file = "/var/tmp/aesdsocketdata";
@@ -79,6 +79,14 @@ void *handle_connection(void *arg)
     struct thread_info_t *thread_info = (struct thread_info_t *)arg;
     client_info_t client_data = thread_info->client_data;
 
+    #if USE_AESD_CHAR_DEVICE
+    datafd = open("/dev/aesdchar", O_RDWR);
+    if (datafd == -1) {
+        syslog(LOG_ERR, "ERROR: Failed to open /dev/aesdchar");
+        cleanup(EXIT_FAILURE);
+    }
+    #endif
+
     // Receive and process data
     size_t buffer_size = 32*1024;
     char* buffer = (char *)malloc(buffer_size * sizeof(char));
@@ -97,9 +105,6 @@ void *handle_connection(void *arg)
         }
         if (write(datafd, buffer, recv_size) == -1) {
             syslog(LOG_ERR, "ERROR: Failed to write to %s file", aesddata_file);
-            #if !USE_AESD_CHAR_DEVICE
-            ftruncate(datafd, init_offset);
-            #endif
             cleanup(EXIT_FAILURE);
         }
         if (pthread_mutex_unlock(&aesddata_file_mutex) != 0) {
@@ -132,6 +137,11 @@ void *handle_connection(void *arg)
     // Log closed connection
     syslog(LOG_INFO, "Closed connection from %s", client_data.client_ip);
     close(client_data.client_sockfd);
+
+    #if USE_AESD_CHAR_DEVICE
+    if (datafd >= 0)
+        close(datafd);
+    #endif
 
     thread_info->work_done = 1;
     return NULL;
@@ -244,14 +254,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    #if USE_AESD_CHAR_DEVICE 
-    datafd = open("/dev/aesdchar", O_CREAT | O_TRUNC | O_RDWR, 0644);
-    if (datafd == -1){
-        syslog(LOG_ERR, "ERROR: Failed to create file - %s", aesddata_file);
-        closelog();
-        exit(EXIT_FAILURE);
-    }
-    #else
+    #if !USE_AESD_CHAR_DEVICE
     datafd = open(aesddata_file, O_CREAT | O_RDWR | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (datafd == -1){
         syslog(LOG_ERR, "ERROR: Failed to create file - %s", aesddata_file);
