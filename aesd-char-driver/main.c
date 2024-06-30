@@ -165,7 +165,7 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 
     mutex_lock(&dev->lock);
 
-    total_size = (loff_t) aesd_get_total_size(&aesd_device->circular_buffer);
+    total_size = (loff_t) aesd_get_total_size(&dev->circular_buffer);
     ret = fixed_size_llseek(filp, offset, whence, total_size);
 
     mutex_unlock(&dev->lock);
