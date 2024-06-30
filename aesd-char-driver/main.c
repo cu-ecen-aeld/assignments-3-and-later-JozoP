@@ -165,10 +165,10 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 
     mutex_lock(&dev->lock);
 
-    total_size = (loff_t) aesd_get_total_size(&aesd_device->cbuf);
+    total_size = (loff_t) aesd_get_total_size(&aesd_device->circular_buffer);
     ret = fixed_size_llseek(filp, offset, whence, total_size);
 
-    mutex_unlock(&aesd_device->lock);
+    mutex_unlock(&dev->lock);
 
     return ret;
 }
@@ -194,7 +194,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     if (mutex_lock_interruptible(&dev->lock))
         return -ERESTARTSYS;
 
-    offset = (off_t) aesd_get_offset(&dev->cbuf, seekto.write_cmd, seekto.write_cmd_offset);
+    offset = (off_t) aesd_get_offset(&dev->circular_buffer, seekto.write_cmd, seekto.write_cmd_offset);
 
     if (offset < 0)
     {
