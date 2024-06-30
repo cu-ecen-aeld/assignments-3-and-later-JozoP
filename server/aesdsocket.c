@@ -117,7 +117,7 @@ void *connection_handler(void *socket_desc) {
             // Check if the command is a write command
             if (strncmp(buffer, "AESDCHAR_IOCSEEKTO:", strlen("AESDCHAR_IOCSEEKTO:")) == 0) {
                 unsigned int x, y;
-                if (sscanf(command, "AESDCHAR_IOCSEEKTO:%u,%u", &x, &y) == 2) {
+                if (sscanf(buffer, "AESDCHAR_IOCSEEKTO:%u,%u", &x, &y) == 2) {
                     FILE *fp = fopen(DATA_FILE, "r+");
                     if (fp == NULL) {
                         perror("fopen");
