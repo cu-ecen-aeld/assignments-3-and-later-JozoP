@@ -152,12 +152,66 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     mutex_unlock(&dev->lock);
     return bytes_written;
 }
+
+loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
+{
+    loff_t ret;
+	loff_t size;
+
+    PDEBUG("llseek offset %lld , whence %d", offset, whence);
+
+    mutex_lock(&aesd_device->lock);
+
+    total_size = (loff_t) aesd_get_total_size(&ad->cbuf);
+    retval = fixed_size_llseek(filp, offset, whence, total_size);
+
+    mutex_unlock(&aesd_device->lock);
+
+    return ret;
+}
+
+long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+    off_t offset = 0;
+    struct aesd_dev *dev = filp->private_data;
+    struct aesd_seekto seekto;
+
+    PDEBUG("Running ioctl command=%u", cmd);
+
+    if (cmd != AESDCHAR_IOCSEEKTO)
+        return -ENOTTY;
+
+    if (copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)) != 0)
+        return -EFAULT;
+
+    PDEBUG("Seekto=%d, offset=%d", seekto.write_cmd, seekto.write_cmd_offset);
+
+    if (mutex_lock_interruptible(&dev->lock))
+        return -ERESTARTSYS;
+
+    offset = (off_t) aesd_get_offset(&dev->cbuf, seekto.write_cmd, seekto.write_cmd_offset);
+
+    if (offset < 0)
+    {
+        offset = -EINVAL;
+        goto exit;
+    }
+
+    filp->f_pos = offset;
+
+exit:
+    mutex_unlock(&dev->lock);
+    return offset;
+}
+
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
     .read =     aesd_read,
     .write =    aesd_write,
     .open =     aesd_open,
     .release =  aesd_release,
+    .llseek         = aesd_llseek,
+    .unlocked_ioctl = aesd_ioctl
 };
 
 static int aesd_setup_cdev(struct aesd_dev *dev)

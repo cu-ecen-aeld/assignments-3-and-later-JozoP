@@ -97,3 +97,85 @@ void aesd_circular_buffer_init(struct aesd_circular_buffer *buffer)
 {
     memset(buffer,0,sizeof(struct aesd_circular_buffer));
 }
+
+size_t aesd_get_total_size(struct aesd_circular_buffer *buffer)
+{
+    size_t total_size = 0;
+    uint8_t max = 0;
+    uint8_t idx;
+    uint8_t pos;
+
+    if (buffer->full)
+    {
+        max = AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+    }
+    else
+    {
+        max = buffer->in_offs + AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED - buffer->out_offs;
+        if (max >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+        {
+            max -= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+        }
+    }
+
+    pos = buffer->out_offs;
+    for (idx = 0; idx < max; ++idx)
+    {
+        total_size += buffer->entry[pos].size;
+        pos++;
+        if (pos >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+        {
+            pos = 0;
+        }
+    }
+
+    return total_size;
+}
+
+long aesd_get_offset(struct aesd_circular_buffer *buffer, uint32_t write_cmd, uint32_t write_cmd_offset)
+{
+    size_t total_size = 0;
+    uint8_t max = 0;
+    uint8_t idx;
+    uint8_t pos;
+
+    if (buffer->full)
+    {
+        max = AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+    }
+    else
+    {
+        max = buffer->in_offs + AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED - buffer->out_offs;
+        if (max >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+        {
+            max -= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+        }
+    }
+
+    if (write_cmd >= max)
+    {
+        return -1;
+    }
+
+    pos = buffer->out_offs;
+    for (idx = 0; idx < write_cmd; ++idx)
+    {
+        total_size += buffer->entry[pos].size;
+        pos++;
+        if (pos >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+        {
+            pos = 0;
+        }
+    }
+
+    if (write_cmd_offset >= buffer->entry[pos].size)
+    {
+        return -1;
+    }
+    else
+    {
+        total_size += write_cmd_offset;
+    }
+
+    return total_size;
+}
