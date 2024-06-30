@@ -156,14 +156,17 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 {
     loff_t ret;
-	loff_t size;
+	loff_t total_size;
+    struct aesd_dev *dev;
 
     PDEBUG("llseek offset %lld , whence %d", offset, whence);
 
-    mutex_lock(&aesd_device->lock);
+    dev = (struct aesd_dev *)filp->private_data;    //
 
-    total_size = (loff_t) aesd_get_total_size(&ad->cbuf);
-    retval = fixed_size_llseek(filp, offset, whence, total_size);
+    mutex_lock(&dev->lock);
+
+    total_size = (loff_t) aesd_get_total_size(&aesd_device->cbuf);
+    ret = fixed_size_llseek(filp, offset, whence, total_size);
 
     mutex_unlock(&aesd_device->lock);
 
@@ -173,10 +176,12 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     off_t offset = 0;
-    struct aesd_dev *dev = filp->private_data;
+    struct aesd_dev *dev;
     struct aesd_seekto seekto;
 
     PDEBUG("Running ioctl command=%u", cmd);
+
+    dev = (struct aesd_dev *)filp->private_data;
 
     if (cmd != AESDCHAR_IOCSEEKTO)
         return -ENOTTY;
