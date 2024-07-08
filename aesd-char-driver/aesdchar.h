@@ -30,10 +30,12 @@ struct aesd_dev
     /**
      * TODO: Add structure(s) and locks needed to complete assignment requirements
      */
-    struct aesd_buffer_entry circular_buffer_entry;
-    struct aesd_circular_buffer circular_buffer;
-    struct mutex lock;
-    struct cdev cdev;
+     struct cdev cdev; //character device structure
+     struct mutex lock; //mutex lock
+     struct aesd_circular_buffer buffer;  //circular buffer structure
+     char *write_buf; //write buffer
+     size_t write_buf_size; 
+     size_t buf_size; //size of circular buffer
 
 };
 
